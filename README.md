@@ -462,6 +462,7 @@ Run this workflow **once** to generate and store your certificates in the match 
 After completing all steps above, you should have these secrets in your GitHub repository:
 
 **Required for signed builds:**
+
 - ✅ `APPLE_CONNECT_EMAIL` - Apple Connect email (for notarization)
 - ✅ `APPLE_DEVELOPER_EMAIL` - Apple Developer email
 - ✅ `APPLE_TEAM_ID` - Team ID from Apple Developer account
@@ -473,6 +474,7 @@ After completing all steps above, you should have these secrets in your GitHub r
 - ✅ `APPSTORE_P8` - App Store Connect API private key (.p8 contents)
 
 **Optional (only needed for apple-setup action):**
+
 - `GH_PAT` - GitHub Personal Access Token
 
 **Important Notes:**
@@ -557,7 +559,6 @@ MIT
 ## Related Actions
 
 - [starburst997/apple-setup](https://github.com/starburst997/apple-setup) - Set up Apple code signing certificates
-- [starburst997/setup-ruby](https://github.com/starburst997/setup-ruby) - Set up Ruby with platform support
 
 ## Contributing
 
