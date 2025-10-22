@@ -270,12 +270,17 @@ runs:
 
     - name: Cache Xcode DerivedData
       if: inputs.enable_xcode_cache == 'true'
-      uses: actions/cache@v4
+      uses: irgaly/xcode-cache@v1
       with:
-        path: ~/Library/Developer/Xcode/DerivedData
-        key: ${{ runner.os }}-xcode-${{ hashFiles(format('{0}/{1}/project.pbxproj', inputs.working_directory, inputs.project_path), format('{0}/{1}/contents.xcworkspacedata', inputs.working_directory, inputs.workspace_path), format('{0}/{1}/Podfile.lock', inputs.working_directory, inputs.cocoapods_directory)) }}
-        restore-keys: |
-          ${{ runner.os }}-xcode-
+        key: xcode-cache-deriveddata-${{ github.workflow }}-${{ github.sha }}
+        restore-keys: xcode-cache-deriveddata-${{ github.workflow }}-
+        restore-mtime-targets: |
+          ${{ inputs.working_directory }}/**/*.swift
+          ${{ inputs.working_directory }}/**/*.h
+          ${{ inputs.working_directory }}/**/*.m
+          ${{ inputs.working_directory }}/**/*.mm
+          ${{ inputs.working_directory }}/**/*.c
+          ${{ inputs.working_directory }}/**/*.cpp
 
     - name: Build App
       id: build
