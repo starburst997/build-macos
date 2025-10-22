@@ -1,0 +1,68 @@
+default_platform(:mac)
+
+platform :mac do
+  desc "Build unsigned app for testing"
+  lane :build_unsigned do
+    build_mac_app(
+      export_method: ENV.fetch('EXPORT_METHOD', 'mac-application'),
+      workspace: ENV['WORKSPACE_PATH'],
+      output_directory: ENV.fetch('OUTPUT_DIRECTORY', 'dist'),
+      output_name: ENV['OUTPUT_NAME'],
+      scheme: ENV['SCHEME']
+    )
+  end
+
+  desc "Build and sign app with Developer ID"
+  lane :build_signed do
+    setup_ci
+
+    # Unity has specific requirements around codesigning that we have to handle
+    # See https://github.com/fastlane/fastlane/discussions/17458 for context
+    update_code_signing_settings(
+      use_automatic_signing: true,
+      path: ENV['PROJECT_PATH']
+    )
+
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      team_id: ENV["sigh_#{ENV['MAC_BUNDLE_ID']}_developer_id_macos_team-id"],
+      code_sign_identity: 'Developer ID Application',
+      targets: ENV['SCHEME'],
+      bundle_identifier: ENV["MAC_BUNDLE_ID"],
+      path: ENV['PROJECT_PATH'],
+      profile_name: ENV["sigh_#{ENV['MAC_BUNDLE_ID']}_developer_id_macos_profile-name"],
+      profile_uuid: ENV["sigh_#{ENV['MAC_BUNDLE_ID']}_developer_id_macos"]
+    )
+
+    # Enable Hardened Runtime (required for notarization)
+    update_project_provisioning(
+      xcodeproj: ENV['PROJECT_PATH'],
+      target_filter: ENV['SCHEME'],
+      build_configuration: "Release"
+    )
+
+    build_mac_app(
+      export_method: ENV.fetch('EXPORT_METHOD', 'developer-id'),
+      workspace: ENV['WORKSPACE_PATH'],
+      output_directory: ENV.fetch('OUTPUT_DIRECTORY', 'dist'),
+      output_name: ENV['OUTPUT_NAME'],
+      scheme: ENV['SCHEME'],
+      xcargs: '-allowProvisioningUpdates ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS="--timestamp --options=runtime"',
+      export_options: {
+        provisioningProfiles: {
+          ENV["MAC_BUNDLE_ID"] => ENV["sigh_#{ENV['MAC_BUNDLE_ID']}_developer_id_macos_profile-name"]
+        }
+      }
+    )
+
+    # Notarize the app if enabled
+    if ENV['ENABLE_NOTARIZATION'] == 'true'
+      notarize(
+        package: "#{ENV.fetch('OUTPUT_DIRECTORY', 'dist')}/#{ENV['OUTPUT_NAME']}.app",
+        bundle_id: ENV["MAC_BUNDLE_ID"],
+        username: ENV["APPLE_CONNECT_EMAIL"],
+        print_log: true
+      )
+    end
+  end
+end

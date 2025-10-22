@@ -1,0 +1,341 @@
+name: "Build macOS Application"
+description: "Builds and signs macOS applications with fastlane, with support for npm, CocoaPods, and Xcode builds"
+author: "JD Boivin"
+
+branding:
+  icon: "package"
+  color: "blue"
+
+inputs:
+  # Project configuration
+  working_directory:
+    description: "Working directory containing the project (relative to repository root)"
+    required: false
+    default: "."
+
+  # Node.js/npm configuration
+  node_version:
+    description: "Node.js version to use"
+    required: false
+    default: "20"
+  enable_npm:
+    description: "Enable npm installation (auto-detected if package.json exists)"
+    required: false
+    default: "auto"
+  npm_cache_dependency_path:
+    description: "Path to package-lock.json for npm caching (relative to working_directory)"
+    required: false
+    default: "package-lock.json"
+
+  # Ruby/Bundler configuration
+  ruby_version:
+    description: "Ruby version to use"
+    required: false
+    default: "3.2"
+  enable_bundler:
+    description: "Enable bundler installation (auto-detected if Gemfile exists)"
+    required: false
+    default: "auto"
+
+  # CocoaPods configuration
+  enable_cocoapods:
+    description: "Enable CocoaPods installation (auto-detected if Podfile exists)"
+    required: false
+    default: "auto"
+  cocoapods_directory:
+    description: "Directory containing Podfile (relative to working_directory)"
+    required: false
+    default: "macos"
+  enable_cocoapods_cache:
+    description: "Enable caching for CocoaPods"
+    required: false
+    default: "true"
+
+  # Xcode configuration
+  workspace_path:
+    description: "Path to .xcworkspace file (relative to working_directory)"
+    required: true
+  project_path:
+    description: "Path to .xcodeproj file (relative to working_directory, used for code signing settings)"
+    required: true
+  scheme:
+    description: "Xcode scheme to build"
+    required: true
+  enable_xcode_cache:
+    description: "Enable caching for Xcode DerivedData"
+    required: false
+    default: "true"
+
+  # Build configuration
+  build_signed:
+    description: "Build with code signing (requires match secrets)"
+    required: false
+    default: "true"
+  export_method:
+    description: "Export method: 'developer-id' or 'mac-application'"
+    required: false
+    default: "developer-id"
+  output_directory:
+    description: "Output directory for built app (relative to working_directory)"
+    required: false
+    default: "dist"
+  output_name:
+    description: "Output app name (without .app extension)"
+    required: true
+
+  # ZIP configuration
+  create_zip:
+    description: "Create a ZIP archive of the built app"
+    required: false
+    default: "false"
+  zip_name:
+    description: "Name of the ZIP file (without .zip extension)"
+    required: false
+    default: ""
+
+  # Notarization configuration
+  enable_notarization:
+    description: "Enable notarization for signed builds"
+    required: false
+    default: "true"
+
+  # Apple credentials (required for signed builds)
+  apple_connect_email:
+    description: "Apple Connect email (required for notarization)"
+    required: false
+    default: ""
+  apple_developer_email:
+    description: "Apple Developer email (required for signed builds)"
+    required: false
+    default: ""
+  apple_team_id:
+    description: "Apple Team ID (required for signed builds)"
+    required: false
+    default: ""
+
+  # App Store Connect API (required for signed builds if use_session is false)
+  appstore_issuer_id:
+    description: "App Store Connect API issuer ID"
+    required: false
+    default: ""
+  appstore_key_id:
+    description: "App Store Connect API key ID"
+    required: false
+    default: ""
+  appstore_p8:
+    description: "App Store Connect API private key content"
+    required: false
+    default: ""
+
+  # Match configuration (required for signed builds)
+  match_repository:
+    description: "Git repository for storing certificates (format: org/repo)"
+    required: false
+    default: ""
+  match_password:
+    description: "Password to encrypt/decrypt certificates"
+    required: false
+    default: ""
+  match_deploy_key:
+    description: "SSH deploy key for match repository"
+    required: false
+    default: ""
+
+  # Bundle ID
+  mac_bundle_id:
+    description: "macOS application bundle identifier"
+    required: true
+
+  # Session auth (alternative to API key)
+  use_session:
+    description: "Use Apple ID session authentication instead of App Store Connect API"
+    required: false
+    default: "false"
+  fastlane_user:
+    description: "Apple ID email (required if use_session is true)"
+    required: false
+    default: ""
+  fastlane_password:
+    description: "Apple ID password (required if use_session is true)"
+    required: false
+    default: ""
+  fastlane_session:
+    description: "Fastlane session cookie (required if use_session is true)"
+    required: false
+    default: ""
+
+outputs:
+  app_path:
+    description: "Path to the built .app bundle"
+    value: ${{ steps.build.outputs.app_path }}
+  zip_path:
+    description: "Path to the created ZIP file (if create_zip is true)"
+    value: ${{ steps.build.outputs.zip_path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Detect project features
+      id: detect
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+      run: |
+        # Detect package.json for npm
+        if [[ "${{ inputs.enable_npm }}" == "auto" ]]; then
+          if [[ -f "package.json" ]]; then
+            echo "npm_enabled=true" >> $GITHUB_OUTPUT
+            echo "✅ Detected package.json - npm will be enabled"
+          else
+            echo "npm_enabled=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  No package.json found - npm will be skipped"
+          fi
+        else
+          echo "npm_enabled=${{ inputs.enable_npm }}" >> $GITHUB_OUTPUT
+          echo "ℹ️  npm manually set to: ${{ inputs.enable_npm }}"
+        fi
+
+        # Detect Gemfile for bundler
+        if [[ "${{ inputs.enable_bundler }}" == "auto" ]]; then
+          if [[ -f "Gemfile" ]]; then
+            echo "bundler_enabled=true" >> $GITHUB_OUTPUT
+            echo "✅ Detected Gemfile - bundler will be enabled"
+          else
+            echo "bundler_enabled=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  No Gemfile found - bundler will be skipped"
+          fi
+        else
+          echo "bundler_enabled=${{ inputs.enable_bundler }}" >> $GITHUB_OUTPUT
+          echo "ℹ️  bundler manually set to: ${{ inputs.enable_bundler }}"
+        fi
+
+        # Detect Podfile for CocoaPods
+        if [[ "${{ inputs.enable_cocoapods }}" == "auto" ]]; then
+          if [[ -f "${{ inputs.cocoapods_directory }}/Podfile" ]]; then
+            echo "cocoapods_enabled=true" >> $GITHUB_OUTPUT
+            echo "✅ Detected Podfile - CocoaPods will be enabled"
+          else
+            echo "cocoapods_enabled=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  No Podfile found - CocoaPods will be skipped"
+          fi
+        else
+          echo "cocoapods_enabled=${{ inputs.enable_cocoapods }}" >> $GITHUB_OUTPUT
+          echo "ℹ️  CocoaPods manually set to: ${{ inputs.enable_cocoapods }}"
+        fi
+
+    - name: Setup Node.js (root)
+      if: steps.detect.outputs.npm_enabled == 'true'
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node_version }}
+        cache: "npm"
+
+    - name: Setup Ruby
+      uses: starburst997/setup-ruby@jd
+      with:
+        ruby-version: ${{ inputs.ruby_version }}
+        bundler-cache: ${{ steps.detect.outputs.bundler_enabled }}
+        add-platform: true
+        working-directory: ${{ inputs.working_directory }}
+
+    - name: Install Bundler Dependencies
+      if: steps.detect.outputs.bundler_enabled == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+      run: bundle install
+
+    - name: Setup Node.js (with cache)
+      if: steps.detect.outputs.npm_enabled == 'true'
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node_version }}
+        cache: "npm"
+        cache-dependency-path: ${{ inputs.working_directory }}/${{ inputs.npm_cache_dependency_path }}
+
+    - name: Install npm Dependencies
+      if: steps.detect.outputs.npm_enabled == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+      run: npm ci
+
+    - name: Cache CocoaPods
+      if: steps.detect.outputs.cocoapods_enabled == 'true' && inputs.enable_cocoapods_cache == 'true'
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ inputs.working_directory }}/${{ inputs.cocoapods_directory }}/Pods
+          ~/Library/Caches/CocoaPods
+          ~/.cocoapods
+        key: ${{ runner.os }}-pods-${{ hashFiles(format('{0}/{1}/Podfile.lock', inputs.working_directory, inputs.cocoapods_directory)) }}
+        restore-keys: |
+          ${{ runner.os }}-pods-
+
+    - name: Install CocoaPods Dependencies
+      if: steps.detect.outputs.cocoapods_enabled == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}/${{ inputs.cocoapods_directory }}
+      run: pod install
+
+    - name: Cache Xcode DerivedData
+      if: inputs.enable_xcode_cache == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ~/Library/Developer/Xcode/DerivedData
+        key: ${{ runner.os }}-xcode-${{ hashFiles(format('{0}/{1}/project.pbxproj', inputs.working_directory, inputs.project_path), format('{0}/{1}/contents.xcworkspacedata', inputs.working_directory, inputs.workspace_path), format('{0}/{1}/Podfile.lock', inputs.working_directory, inputs.cocoapods_directory)) }}
+        restore-keys: |
+          ${{ runner.os }}-xcode-
+
+    - name: Build App
+      id: build
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+      run: |
+        if [[ "${{ inputs.build_signed }}" == "true" && -n "${{ inputs.match_repository }}" ]]; then
+          # Build signed with Match
+          echo "Building signed app..."
+          eval "$(ssh-agent -s)"
+          ssh-add - <<< "$MATCH_DEPLOY_KEY"
+          bundle exec fastlane mac build_signed
+        else
+          # Build unsigned for testing
+          echo "Building unsigned app..."
+          bundle exec fastlane mac build_unsigned
+        fi
+
+        # Set output paths
+        APP_PATH="${{ inputs.working_directory }}/${{ inputs.output_directory }}/${{ inputs.output_name }}.app"
+        echo "app_path=$APP_PATH" >> $GITHUB_OUTPUT
+
+        # Create ZIP if requested
+        if [[ "${{ inputs.create_zip }}" == "true" ]]; then
+          cd "${{ inputs.output_directory }}"
+          ZIP_NAME="${{ inputs.zip_name }}"
+          if [[ -z "$ZIP_NAME" ]]; then
+            ZIP_NAME="${{ inputs.output_name }}-macOS"
+          fi
+          zip -r "${ZIP_NAME}.zip" "${{ inputs.output_name }}.app"
+          ZIP_PATH="${{ inputs.working_directory }}/${{ inputs.output_directory }}/${ZIP_NAME}.zip"
+          echo "zip_path=$ZIP_PATH" >> $GITHUB_OUTPUT
+          echo "✅ Created ZIP: ${ZIP_NAME}.zip"
+        fi
+      env:
+        APPLE_CONNECT_EMAIL: ${{ inputs.apple_connect_email }}
+        APPLE_DEVELOPER_EMAIL: ${{ inputs.apple_developer_email }}
+        APPLE_TEAM_ID: ${{ inputs.apple_team_id }}
+        MATCH_REPOSITORY: ${{ inputs.match_repository }}
+        MATCH_PASSWORD: ${{ inputs.match_password }}
+        MATCH_DEPLOY_KEY: ${{ inputs.match_deploy_key }}
+        APPSTORE_ISSUER_ID: ${{ inputs.appstore_issuer_id }}
+        APPSTORE_KEY_ID: ${{ inputs.appstore_key_id }}
+        APPSTORE_P8: ${{ inputs.appstore_p8 }}
+        MAC_BUNDLE_ID: ${{ inputs.mac_bundle_id }}
+        USE_SESSION: ${{ inputs.use_session }}
+        FASTLANE_USER: ${{ inputs.fastlane_user }}
+        FASTLANE_PASSWORD: ${{ inputs.fastlane_password }}
+        FASTLANE_SESSION: ${{ inputs.fastlane_session }}
+        ENABLE_NOTARIZATION: ${{ inputs.enable_notarization }}
+        WORKSPACE_PATH: ${{ inputs.workspace_path }}
+        PROJECT_PATH: ${{ inputs.project_path }}
+        SCHEME: ${{ inputs.scheme }}
+        EXPORT_METHOD: ${{ inputs.export_method }}
+        OUTPUT_DIRECTORY: ${{ inputs.output_directory }}
+        OUTPUT_NAME: ${{ inputs.output_name }}

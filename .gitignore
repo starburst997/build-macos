@@ -1,0 +1,21 @@
+# Bundler
+.bundle/
+vendor/bundle
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/README.md
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Gemfile.lock (optional - uncomment if you want to ignore it)
+# Gemfile.lock
