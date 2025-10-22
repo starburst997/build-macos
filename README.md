@@ -552,6 +552,51 @@ The action auto-detects npm by looking for package.json. Make sure:
 - Ensure the bundle ID matches the one used during certificate generation
 - Verify the match deploy key has access to the match repository
 
+### Notarization fails with "hardened runtime not enabled"
+
+If you see the error `"The executable does not have the hardened runtime enabled"`, this means your app binary wasn't built with hardened runtime enabled, which is required for notarization.
+
+**Solution:**
+
+1. **Add an entitlements file** to your Xcode project (e.g., `macos/YourApp.entitlements`):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>
+```
+
+2. **Configure entitlements in Xcode:**
+   - Open your project in Xcode
+   - Select your target → Build Settings
+   - Search for "Code Signing Entitlements"
+   - Set it to the path of your entitlements file (e.g., `macos/YourApp.entitlements`)
+   - Search for "Enable Hardened Runtime"
+   - Set it to `YES`
+
+3. **For React Native projects:** Ensure your Podfile has the following post-install hook:
+
+```ruby
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['ENABLE_HARDENED_RUNTIME'] = 'YES'
+    end
+  end
+end
+```
+
+**Note:** The entitlements shown above (`allow-jit`, `allow-unsigned-executable-memory`, `disable-library-validation`) are commonly needed for apps that use JIT compilation or load dynamic libraries (like React Native, Electron, or Unity apps). Adjust based on your app's needs. For native macOS apps, you may need fewer entitlements.
+
 ## License
 
 MIT
