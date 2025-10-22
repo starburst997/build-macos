@@ -288,13 +288,6 @@ runs:
       with:
         key: xcode-cache-deriveddata-${{ github.workflow }}-${{ github.sha }}
         restore-keys: xcode-cache-deriveddata-${{ github.workflow }}-
-        restore-mtime-targets: |
-          ${{ inputs.working_directory }}/**/*.swift
-          ${{ inputs.working_directory }}/**/*.h
-          ${{ inputs.working_directory }}/**/*.m
-          ${{ inputs.working_directory }}/**/*.mm
-          ${{ inputs.working_directory }}/**/*.c
-          ${{ inputs.working_directory }}/**/*.cpp
 
     - name: Build App
       id: build
