@@ -170,7 +170,7 @@ outputs:
     value: ${{ steps.build.outputs.app_path }}
   zip_path:
     description: "Path to the created ZIP file (if create_zip is true)"
-    value: ${{ steps.build.outputs.zip_path }}
+    value: ${{ steps.zip.outputs.zip_path }}
 
 runs:
   using: "composite"
@@ -222,13 +222,6 @@ runs:
           echo "ℹ️  CocoaPods manually set to: ${{ inputs.enable_cocoapods }}"
         fi
 
-    - name: Setup Node.js (root)
-      if: steps.detect.outputs.npm_enabled == 'true'
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ inputs.node_version }}
-        cache: "npm"
-
     - name: Setup Ruby
       uses: starburst997/setup-ruby@jd
       with:
@@ -243,7 +236,7 @@ runs:
       working-directory: ${{ inputs.working_directory }}
       run: bundle install
 
-    - name: Setup Node.js (with cache)
+    - name: Setup Node.js
       if: steps.detect.outputs.npm_enabled == 'true'
       uses: actions/setup-node@v4
       with:
@@ -304,19 +297,6 @@ runs:
         # Set output paths
         APP_PATH="${{ inputs.working_directory }}/${{ inputs.output_directory }}/${{ inputs.output_name }}.app"
         echo "app_path=$APP_PATH" >> $GITHUB_OUTPUT
-
-        # Create ZIP if requested
-        if [[ "${{ inputs.create_zip }}" == "true" ]]; then
-          cd "${{ inputs.output_directory }}"
-          ZIP_NAME="${{ inputs.zip_name }}"
-          if [[ -z "$ZIP_NAME" ]]; then
-            ZIP_NAME="${{ inputs.output_name }}-macOS"
-          fi
-          zip -r "${ZIP_NAME}.zip" "${{ inputs.output_name }}.app"
-          ZIP_PATH="${{ inputs.working_directory }}/${{ inputs.output_directory }}/${ZIP_NAME}.zip"
-          echo "zip_path=$ZIP_PATH" >> $GITHUB_OUTPUT
-          echo "✅ Created ZIP: ${ZIP_NAME}.zip"
-        fi
       env:
         APPLE_CONNECT_EMAIL: ${{ inputs.apple_connect_email }}
         APPLE_DEVELOPER_EMAIL: ${{ inputs.apple_developer_email }}
@@ -339,3 +319,19 @@ runs:
         EXPORT_METHOD: ${{ inputs.export_method }}
         OUTPUT_DIRECTORY: ${{ inputs.output_directory }}
         OUTPUT_NAME: ${{ inputs.output_name }}
+
+    - name: Create ZIP Archive
+      id: zip
+      if: inputs.create_zip == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+      run: |
+        cd "${{ inputs.output_directory }}"
+        ZIP_NAME="${{ inputs.zip_name }}"
+        if [[ -z "$ZIP_NAME" ]]; then
+          ZIP_NAME="${{ inputs.output_name }}-macOS"
+        fi
+        zip -r "${ZIP_NAME}.zip" "${{ inputs.output_name }}.app"
+        ZIP_PATH="${{ inputs.working_directory }}/${{ inputs.output_directory }}/${ZIP_NAME}.zip"
+        echo "zip_path=$ZIP_PATH" >> $GITHUB_OUTPUT
+        echo "✅ Created ZIP: ${ZIP_NAME}.zip"
