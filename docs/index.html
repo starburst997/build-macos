@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Build macOS - GitHub Action for macOS App Building</title>
+    <meta
+      name="description"
+      content="A GitHub composite action to automatically build and sign macOS applications using fastlane. Support for npm, CocoaPods, Xcode builds, code signing, and notarization."
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: #24292f;
+        background: #ffffff;
+        min-height: 100vh;
+      }
+
+      .hero-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 100vh;
+        background: linear-gradient(
+          135deg,
+          #e3f2fd 0%,
+          #f3e5f5 50%,
+          #fff8e1 100%
+        );
+        z-index: -1;
+      }
+
+      .hero-accent {
+        position: absolute;
+        width: 800px;
+        height: 800px;
+        background: radial-gradient(
+          circle,
+          rgba(0, 122, 255, 0.08) 0%,
+          transparent 70%
+        );
+        top: -400px;
+        left: 50%;
+        transform: translateX(-50%);
+        pointer-events: none;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+
+      header {
+        padding: 2rem 0;
+        text-align: center;
+      }
+
+      .hero {
+        padding: 4rem 0 6rem;
+        text-align: center;
+      }
+
+      h1 {
+        font-size: 3.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        background: linear-gradient(to right, #007aff, #5856d6);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .tagline {
+        font-size: 1.5rem;
+        margin-bottom: 2rem;
+        color: #6e6e73;
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .cta-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 2rem;
+      }
+
+      .btn {
+        display: inline-block;
+        padding: 0.875rem 2rem;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        font-size: 1.1rem;
+      }
+
+      .btn-primary {
+        background: #007aff;
+        color: #ffffff;
+        border: 1px solid #007aff;
+      }
+
+      .btn-primary:hover {
+        background: #0051d5;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 30px rgba(0, 122, 255, 0.3);
+      }
+
+      .btn-secondary {
+        background: transparent;
+        color: #007aff;
+        border: 2px solid #007aff;
+      }
+
+      .btn-secondary:hover {
+        background: #007aff;
+        color: #ffffff;
+      }
+
+      .features-section {
+        background: #ffffff;
+        border-top: 1px solid #d2d2d7;
+        padding: 5rem 0;
+      }
+
+      .features {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 3rem;
+        margin-top: 3rem;
+      }
+
+      .feature {
+        text-align: center;
+        padding: 1.5rem;
+      }
+
+      .feature-icon {
+        width: 60px;
+        height: 60px;
+        background: #f5f5f7;
+        border: 1px solid #d2d2d7;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        font-size: 1.8rem;
+      }
+
+      .feature h3 {
+        font-size: 1.3rem;
+        margin-bottom: 1rem;
+        color: #1d1d1f;
+      }
+
+      .feature p {
+        color: #6e6e73;
+        line-height: 1.7;
+      }
+
+      .section-title {
+        text-align: center;
+        font-size: 2.5rem;
+        color: #1d1d1f;
+        margin-bottom: 1rem;
+      }
+
+      .section-subtitle {
+        text-align: center;
+        color: #6e6e73;
+        font-size: 1.2rem;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      .usage-section {
+        padding: 4rem 0;
+        background: #f5f5f7;
+        border-top: 1px solid #d2d2d7;
+        border-bottom: 1px solid #d2d2d7;
+      }
+
+      .code-examples {
+        max-width: 900px;
+        margin: 3rem auto 0;
+      }
+
+      .code-example {
+        background: #1d1d1f;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        overflow-x: auto;
+      }
+
+      .code-example-title {
+        color: #ffffff;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+      }
+
+      .code-example pre {
+        color: #d4d4d4;
+        font-family: "Monaco", "Courier New", monospace;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        overflow-x: auto;
+      }
+
+      .code-example code {
+        color: #d4d4d4;
+      }
+
+      /* Syntax highlighting */
+      .keyword {
+        color: #c586c0;
+      }
+      .string {
+        color: #ce9178;
+      }
+      .comment {
+        color: #6a9955;
+      }
+      .property {
+        color: #9cdcfe;
+      }
+      .value {
+        color: #4ec9b0;
+      }
+      .variable {
+        color: #569cd6;
+      }
+
+      .use-cases-section {
+        padding: 4rem 0;
+        background: #ffffff;
+      }
+
+      .use-case-cards {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+        margin-top: 3rem;
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .use-case-card {
+        background: #f5f5f7;
+        border: 1px solid #d2d2d7;
+        border-radius: 15px;
+        padding: 2rem;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .use-case-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      }
+
+      .use-case-card h3 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: #1d1d1f;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .use-case-card ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      .use-case-card li {
+        padding: 0.5rem 0;
+        color: #6e6e73;
+        padding-left: 1.5rem;
+        position: relative;
+      }
+
+      .use-case-card li:before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: #34c759;
+        font-weight: bold;
+      }
+
+      footer {
+        background: #1d1d1f;
+        padding: 3rem 0;
+        text-align: center;
+        color: #a1a1a6;
+      }
+
+      footer a {
+        color: #007aff;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      footer a:hover {
+        color: #0051d5;
+        text-decoration: underline;
+      }
+
+      @media (max-width: 768px) {
+        h1 {
+          font-size: 2.5rem;
+        }
+
+        .tagline {
+          font-size: 1.2rem;
+        }
+
+        .features {
+          grid-template-columns: 1fr;
+          gap: 2rem;
+        }
+
+        .use-case-cards {
+          grid-template-columns: 1fr;
+        }
+
+        .cta-buttons {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="hero-background">
+      <div class="hero-accent"></div>
+    </div>
+
+    <header>
+      <div class="container">
+        <nav>
+          <a
+            href="https://github.com/starburst997/build-macos"
+            class="btn btn-secondary"
+          >
+            View on GitHub →
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="container">
+        <h1>Build macOS</h1>
+        <p class="tagline">
+          GitHub composite action to automatically build and sign macOS
+          applications using fastlane. Complete support for npm, CocoaPods,
+          Xcode builds, code signing, and notarization.
+        </p>
+        <div class="cta-buttons">
+          <a
+            href="https://github.com/starburst997/build-macos"
+            class="btn btn-primary"
+          >
+            Get Started
+          </a>
+          <a
+            href="https://github.com/starburst997/build-macos#readme"
+            class="btn btn-secondary"
+          >
+            Documentation
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="features-section">
+      <div class="container">
+        <h2 class="section-title">Why Build macOS?</h2>
+        <p class="section-subtitle">
+          Complete macOS build automation with intelligent dependency detection
+        </p>
+
+        <div class="features">
+          <div class="feature">
+            <div class="feature-icon">🔍</div>
+            <h3>Automatic Detection</h3>
+            <p>
+              Automatically detects and installs npm, Bundler, and CocoaPods
+              dependencies based on your project structure.
+            </p>
+          </div>
+
+          <div class="feature">
+            <div class="feature-icon">⚙️</div>
+            <h3>Flexible Configuration</h3>
+            <p>
+              Customizable paths for workspace, project, scheme, and output.
+              Works with any macOS project structure.
+            </p>
+          </div>
+
+          <div class="feature">
+            <div class="feature-icon">🔐</div>
+            <h3>Code Signing</h3>
+            <p>
+              Optional code signing with fastlane match and Developer ID for
+              distribution outside the Mac App Store.
+            </p>
+          </div>
+
+          <div class="feature">
+            <div class="feature-icon">✓</div>
+            <h3>Notarization</h3>
+            <p>
+              Built-in support for Apple notarization to ensure your app is
+              trusted by macOS Gatekeeper.
+            </p>
+          </div>
+
+          <div class="feature">
+            <div class="feature-icon">⚡</div>
+            <h3>Smart Caching</h3>
+            <p>
+              Built-in caching for npm, CocoaPods, and Xcode DerivedData for
+              faster builds.
+            </p>
+          </div>
+
+          <div class="feature">
+            <div class="feature-icon">📦</div>
+            <h3>ZIP Creation</h3>
+            <p>
+              Optional ZIP archive creation for easy distribution and upload to
+              GitHub releases.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="usage-section">
+      <div class="container">
+        <h2 class="section-title">Quick Start</h2>
+        <p class="section-subtitle">
+          Get up and running in minutes with these simple examples
+        </p>
+
+        <div class="code-examples">
+          <div class="code-example">
+            <div class="code-example-title">
+              Unsigned Build (Testing Only)
+            </div>
+            <pre><code><span class="comment"># Build unsigned app for local testing</span>
+<span class="keyword">-</span> <span class="property">name</span><span class="keyword">:</span> Build macOS App
+  <span class="property">uses</span><span class="keyword">:</span> starburst997/build-macos@v1
+  <span class="property">with</span><span class="keyword">:</span>
+    <span class="property">workspace_path</span><span class="keyword">:</span> <span class="string">"macos/MyApp.xcworkspace"</span>
+    <span class="property">project_path</span><span class="keyword">:</span> <span class="string">"macos/MyApp.xcodeproj"</span>
+    <span class="property">scheme</span><span class="keyword">:</span> <span class="string">"MyApp-macOS"</span>
+    <span class="property">output_name</span><span class="keyword">:</span> <span class="string">"MyApp"</span>
+    <span class="property">mac_bundle_id</span><span class="keyword">:</span> <span class="string">"com.company.myapp"</span>
+    <span class="property">build_signed</span><span class="keyword">:</span> <span class="value">false</span></code></pre>
+          </div>
+
+          <div class="code-example">
+            <div class="code-example-title">
+              Signed Build with Developer ID
+            </div>
+            <pre><code><span class="comment"># Build and sign for distribution outside Mac App Store</span>
+<span class="keyword">-</span> <span class="property">name</span><span class="keyword">:</span> Build macOS App
+  <span class="property">uses</span><span class="keyword">:</span> starburst997/build-macos@v1
+  <span class="property">with</span><span class="keyword">:</span>
+    <span class="comment"># Project configuration</span>
+    <span class="property">workspace_path</span><span class="keyword">:</span> <span class="string">"macos/MyApp.xcworkspace"</span>
+    <span class="property">project_path</span><span class="keyword">:</span> <span class="string">"macos/MyApp.xcodeproj"</span>
+    <span class="property">scheme</span><span class="keyword">:</span> <span class="string">"MyApp-macOS"</span>
+    <span class="property">output_name</span><span class="keyword">:</span> <span class="string">"MyApp"</span>
+    <span class="property">mac_bundle_id</span><span class="keyword">:</span> <span class="string">"com.company.myapp"</span>
+
+    <span class="comment"># Build configuration</span>
+    <span class="property">build_signed</span><span class="keyword">:</span> <span class="value">true</span>
+    <span class="property">export_method</span><span class="keyword">:</span> <span class="string">"developer-id"</span>
+    <span class="property">create_zip</span><span class="keyword">:</span> <span class="value">true</span>
+
+    <span class="comment"># Apple credentials</span>
+    <span class="property">apple_connect_email</span><span class="keyword">:</span> <span class="variable">${{ secrets.APPLE_CONNECT_EMAIL }}</span>
+    <span class="property">apple_developer_email</span><span class="keyword">:</span> <span class="variable">${{ secrets.APPLE_DEVELOPER_EMAIL }}</span>
+    <span class="property">apple_team_id</span><span class="keyword">:</span> <span class="variable">${{ secrets.APPLE_TEAM_ID }}</span>
+
+    <span class="comment"># Match configuration</span>
+    <span class="property">match_repository</span><span class="keyword">:</span> <span class="variable">${{ secrets.MATCH_REPOSITORY }}</span>
+    <span class="property">match_password</span><span class="keyword">:</span> <span class="variable">${{ secrets.MATCH_PASSWORD }}</span>
+    <span class="property">match_deploy_key</span><span class="keyword">:</span> <span class="variable">${{ secrets.MATCH_DEPLOY_KEY }}</span>
+
+    <span class="comment"># App Store Connect API</span>
+    <span class="property">appstore_issuer_id</span><span class="keyword">:</span> <span class="variable">${{ secrets.APPSTORE_ISSUER_ID }}</span>
+    <span class="property">appstore_key_id</span><span class="keyword">:</span> <span class="variable">${{ secrets.APPSTORE_KEY_ID }}</span>
+    <span class="property">appstore_p8</span><span class="keyword">:</span> <span class="variable">${{ secrets.APPSTORE_P8 }}</span></code></pre>
+          </div>
+
+          <div class="code-example">
+            <div class="code-example-title">React Native App Example</div>
+            <pre><code><span class="comment"># Build React Native macOS app with npm and CocoaPods</span>
+<span class="keyword">-</span> <span class="property">name</span><span class="keyword">:</span> Build React Native macOS App
+  <span class="property">uses</span><span class="keyword">:</span> starburst997/build-macos@v1
+  <span class="property">with</span><span class="keyword">:</span>
+    <span class="property">working_directory</span><span class="keyword">:</span> <span class="string">"sample"</span>
+    <span class="property">workspace_path</span><span class="keyword">:</span> <span class="string">"macos/MyApp.xcworkspace"</span>
+    <span class="property">project_path</span><span class="keyword">:</span> <span class="string">"macos/MyApp.xcodeproj"</span>
+    <span class="property">scheme</span><span class="keyword">:</span> <span class="string">"MyApp-macOS"</span>
+    <span class="property">cocoapods_directory</span><span class="keyword">:</span> <span class="string">"macos"</span>
+    <span class="property">output_name</span><span class="keyword">:</span> <span class="string">"MyApp"</span>
+    <span class="property">mac_bundle_id</span><span class="keyword">:</span> <span class="string">"com.company.myapp"</span>
+    <span class="property">build_signed</span><span class="keyword">:</span> <span class="value">true</span>
+    <span class="property">create_zip</span><span class="keyword">:</span> <span class="value">true</span>
+    <span class="comment"># ... add credentials</span></code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="use-cases-section">
+      <div class="container">
+        <h2 class="section-title">Perfect For</h2>
+        <p class="section-subtitle">
+          Versatile solution for various macOS app development workflows
+        </p>
+
+        <div class="use-case-cards">
+          <div class="use-case-card">
+            <h3>Native macOS Apps</h3>
+            <ul>
+              <li>Swift and Objective-C projects</li>
+              <li>Xcode workspace support</li>
+              <li>CocoaPods dependency management</li>
+              <li>Full code signing support</li>
+            </ul>
+          </div>
+
+          <div class="use-case-card">
+            <h3>React Native macOS</h3>
+            <ul>
+              <li>Automatic npm detection</li>
+              <li>Metro bundler integration</li>
+              <li>CocoaPods for native modules</li>
+              <li>Configurable working directory</li>
+            </ul>
+          </div>
+
+          <div class="use-case-card">
+            <h3>Electron/Hybrid Apps</h3>
+            <ul>
+              <li>Node.js toolchain support</li>
+              <li>Custom build scripts</li>
+              <li>Flexible path configuration</li>
+              <li>ZIP packaging for distribution</li>
+            </ul>
+          </div>
+
+          <div class="use-case-card">
+            <h3>Distribution Ready</h3>
+            <ul>
+              <li>Developer ID code signing</li>
+              <li>Automatic notarization</li>
+              <li>GitHub releases integration</li>
+              <li>CI/CD pipeline ready</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="container">
+        <p>
+          <a href="https://github.com/starburst997/build-macos">GitHub</a> •
+          <a href="https://github.com/starburst997/build-macos/issues"
+            >Issues</a
+          >
+          •
+          <a href="https://github.com/starburst997/build-macos/releases"
+            >Releases</a
+          >
+          •
+          <a href="https://github.com/starburst997/build-macos#readme"
+            >Documentation</a
+          >
+        </p>
+        <p style="margin-top: 1rem; color: #6e6e73">
+          Works seamlessly with
+          <a href="https://github.com/starburst997/apple-setup">Apple Setup</a>
+          for code signing
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
