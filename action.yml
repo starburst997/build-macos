@@ -71,8 +71,12 @@ inputs:
     description: "Build with code signing (requires match secrets)"
     required: false
     default: "true"
+  build_type:
+    description: "Build type: 'developer-id', 'appstore', or 'pkg'"
+    required: false
+    default: "developer-id"
   export_method:
-    description: "Export method: 'developer-id' or 'mac-application'"
+    description: "Export method: 'developer-id', 'app-store', 'package', or 'mac-application'"
     required: false
     default: "developer-id"
   output_directory:
@@ -82,6 +86,16 @@ inputs:
   output_name:
     description: "Output app name (without .app extension)"
     required: true
+
+  # App Store / TestFlight configuration
+  upload_to_testflight:
+    description: "Upload to TestFlight after building (only for appstore build_type)"
+    required: false
+    default: "true"
+  skip_waiting_for_build_processing:
+    description: "Skip waiting for TestFlight build processing"
+    required: false
+    default: "false"
 
   # ZIP configuration
   create_zip:
@@ -289,18 +303,39 @@ runs:
       run: |
         if [[ "${{ inputs.build_signed }}" == "true" && -n "${{ inputs.match_repository }}" ]]; then
           # Build signed with Match
-          echo "Building signed app..."
           eval "$(ssh-agent -s)"
           ssh-add - <<< "$MATCH_DEPLOY_KEY"
-          bundle exec fastlane mac build_signed
+
+          case "${{ inputs.build_type }}" in
+            appstore)
+              echo "Building for App Store..."
+              bundle exec fastlane mac build_appstore
+              ;;
+            pkg)
+              echo "Building PKG installer..."
+              bundle exec fastlane mac build_pkg
+              ;;
+            developer-id)
+              echo "Building with Developer ID..."
+              bundle exec fastlane mac build_signed
+              ;;
+            *)
+              echo "Unknown build type: ${{ inputs.build_type }}"
+              exit 1
+              ;;
+          esac
         else
           # Build unsigned for testing
           echo "Building unsigned app..."
           bundle exec fastlane mac build_unsigned
         fi
 
-        # Set output paths
-        APP_PATH="${{ inputs.working_directory }}/${{ inputs.output_directory }}/${{ inputs.output_name }}.app"
+        # Set output paths based on build type
+        if [[ "${{ inputs.build_type }}" == "pkg" ]]; then
+          APP_PATH="${{ inputs.working_directory }}/${{ inputs.output_directory }}/${{ inputs.output_name }}.pkg"
+        else
+          APP_PATH="${{ inputs.working_directory }}/${{ inputs.output_directory }}/${{ inputs.output_name }}.app"
+        fi
         echo "app_path=$APP_PATH" >> $GITHUB_OUTPUT
       env:
         APPLE_CONNECT_EMAIL: ${{ inputs.apple_connect_email }}
@@ -324,6 +359,9 @@ runs:
         EXPORT_METHOD: ${{ inputs.export_method }}
         OUTPUT_DIRECTORY: ${{ inputs.output_directory }}
         OUTPUT_NAME: ${{ inputs.output_name }}
+        BUILD_TYPE: ${{ inputs.build_type }}
+        UPLOAD_TO_TESTFLIGHT: ${{ inputs.upload_to_testflight }}
+        SKIP_WAITING_FOR_BUILD_PROCESSING: ${{ inputs.skip_waiting_for_build_processing }}
 
     - name: Create ZIP Archive
       id: zip
